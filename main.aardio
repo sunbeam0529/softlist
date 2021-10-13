@@ -1,6 +1,6 @@
 import win.ui;
 /*DSG{{*/
-mainForm = win.form(text="软件列表";right=799;bottom=499)
+mainForm = win.form(text="软件列表";right=799;bottom=499;border="dialog frame";max=false)
 mainForm.add(
 btnDel={cls="button";text="删除";left=264;top=424;right=392;bottom=464;font=LOGFONT(h=-18;name='微软雅黑');z=12};
 btnSave={cls="button";text="保存";left=560;top=424;right=688;bottom=464;font=LOGFONT(h=-18;name='微软雅黑');z=15};
