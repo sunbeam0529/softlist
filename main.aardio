@@ -1,0 +1,179 @@
+import win.ui;
+/*DSG{{*/
+mainForm = win.form(text="软件列表";right=799;bottom=499)
+mainForm.add(
+btnDel={cls="button";text="删除";left=264;top=424;right=392;bottom=464;font=LOGFONT(h=-18;name='微软雅黑');z=12};
+btnSave={cls="button";text="保存";left=560;top=424;right=688;bottom=464;font=LOGFONT(h=-18;name='微软雅黑');z=15};
+button2={cls="button";text="刷新";left=408;top=424;right=536;bottom=464;font=LOGFONT(h=-18;name='微软雅黑');z=13};
+edDescription={cls="richedit";left=264;top=144;right=760;bottom=312;edge=1;multiline=1;wrap=1;z=17};
+edFilename={cls="edit";left=328;top=56;right=464;bottom=88;edge=1;font=LOGFONT(h=-18;name='微软雅黑');z=5};
+edPS={cls="edit";left=312;top=328;right=760;bottom=360;edge=1;font=LOGFONT(h=-18;name='微软雅黑');z=9};
+edPassword={cls="edit";left=312;top=376;right=760;bottom=408;edge=1;font=LOGFONT(h=-18;name='微软雅黑');z=11};
+edVersion={cls="edit";left=544;top=56;right=688;bottom=88;edge=1;font=LOGFONT(h=-18;name='微软雅黑');z=6};
+listbox={cls="listbox";left=24;top=48;right=232;bottom=480;edge=1;font=LOGFONT(h=-18;name='微软雅黑');items={};z=1};
+stTime={cls="static";left=488;top=104;right=688;bottom=128;font=LOGFONT(h=-18;name='微软雅黑');notify=1;transparent=1;z=14};
+st_Version={cls="static";text="Version";left=664;top=480;right=792;bottom=496;align="right";font=LOGFONT(h=-14;name='微软雅黑');notify=1;transparent=1;z=7};
+static={cls="static";text="列表";left=24;top=16;right=64;bottom=40;font=LOGFONT(h=-18;name='微软雅黑');transparent=1;z=2};
+static2={cls="static";text="软件名";left=264;top=56;right=328;bottom=80;font=LOGFONT(h=-18;name='微软雅黑');transparent=1;z=3};
+static3={cls="static";text="版本";left=488;top=56;right=528;bottom=80;font=LOGFONT(h=-18;name='微软雅黑');transparent=1;z=4};
+static5={cls="static";text="备注";left=264;top=328;right=304;bottom=352;font=LOGFONT(h=-18;name='微软雅黑');notify=1;transparent=1;z=8};
+static6={cls="static";text="密码";left=264;top=376;right=304;bottom=400;font=LOGFONT(h=-18;name='微软雅黑');notify=1;transparent=1;z=10};
+static7={cls="static";text="说明";left=264;top=104;right=304;bottom=128;font=LOGFONT(h=-18;name='微软雅黑');transparent=1;z=16}
+)
+/*}}*/
+
+import fsys;
+import win;
+import fsys.version;
+import sqlite
+
+
+var conn = sqlite("/intro2.db")//打开数据库连接
+
+//创建数据表
+if( not conn.existsTable("软件列表") ) {  
+    conn.exec( "CREATE TABLE 软件列表( 文件名,软件名称,版本,说明,备注,密码,时间);" );
+}  
+
+//预处理命名参数
+var addcmd = conn.prepare("INSERT INTO [软件列表] VALUES ( @文件名,@软件名称,@版本,@说明,@备注,@密码,@时间 );")
+
+//检查文件是否在数据库中，没有则增加一条
+CheckFile = function(filename){
+	var result  = conn.stepQuery("SELECT * FROM [软件列表] WHERE ??",{ {
+        				文件名 = filename;
+    } } )
+    if(result){
+    	//找到记录
+    }
+    else {
+    	//未找到记录
+    	//增加一条记录
+    	addcmd.step(
+    		文件名 = filename;
+    		软件名称 = "";
+    		版本 = "";
+    		说明 = "";
+    		备注 = "";
+    		密码 = "";
+    		时间 = time.now();
+		); 
+    }
+}
+
+//刷新数据库
+FreshDatabase = function(){
+	//清空列表
+	mainForm.listbox.clear();
+	//读取当前文件夹所有文件("*.7z","*.rar","*.zip")
+	fsys.enum(  fsys.getCurDir() , //当前目录
+				{"*.7z","*.rar","*.zip"},//指定查询文件名,支持windows掩码
+				function(dir,filename,fullpath,findData){ //指定触发器
+					if(filename){ 
+						//如果是文件(不是目录)
+           				CheckFile(filename)//核对数据库
+					}
+				} 
+		  	);
+	//读取数据库
+	dataTable = conn.getTable("SELECT * FROM [软件列表] " )
+	for(i=1;#dataTable;1){
+		fileinfo = dataTable[i]
+		var filename = fileinfo["文件名"]
+		//确认当前记录的文件是否在目录中
+		if(fsys.searchFile(filename,fsys.getCurDir())){
+			//列表中显示文件名
+			mainForm.listbox.add(filename)
+		}
+		else {
+			//文件不存在，删除当前记录
+			conn.exec("DELETE FROM [软件列表] WHERE 文件名='%s';",filename)
+		}
+		
+	}
+	if(mainForm.listbox.count >= 1){
+		//选中当前第一项
+		mainForm.listbox.selIndex = 1;
+		mainForm.listbox.oncommand(1,1);
+	}
+}
+
+//刷新按钮
+mainForm.button2.oncommand = function(id,event){
+	//刷新数据库
+	FreshDatabase();
+}
+
+//列表框
+mainForm.listbox.oncommand = function(id,event){ 
+	if( event == 0x1/*_LBN_SELCHANGE*/ ){
+		//选中项改变时
+		var result  = conn.stepQuery("SELECT * FROM [软件列表] WHERE ??",{ {
+        文件名 = mainForm.listbox.selText;//查找文件名
+    	} } )
+    	if(result)
+    	{
+    	    //读取所有信息并显示
+    	    mainForm.edFilename.text = result.软件名称
+    	    mainForm.edDescription.text = result.说明
+    	    mainForm.edVersion.text = result.版本
+    	    mainForm.edPS.text = result.备注
+    	    mainForm.edPassword.text = result.密码
+    	    mainForm.stTime.text = result.时间
+    	}
+		
+	}
+}
+
+//保存按钮
+mainForm.btnSave.oncommand = function(id,event){
+	if(mainForm.listbox.selText == null){
+		return; 
+	}
+	//更新数据库
+	conn.exec("UPDATE 软件列表 SET 软件名称=@软件名称,版本=@版本,说明=@说明,备注=@备注,密码=@密码 WHERE 文件名 = @文件名;",{
+		软件名称 = mainForm.edFilename.text;
+		版本 = mainForm.edVersion.text;
+		说明 = mainForm.edDescription.text;
+		备注 = mainForm.edPS.text;
+		密码 = mainForm.edPassword.text;
+		文件名 = mainForm.listbox.selText;
+	} );
+	
+}
+
+//删除按钮
+mainForm.btnDel.oncommand = function(id,event){
+	//确认是否选中
+	if(mainForm.listbox.selText == null){
+		return; 
+	}
+	//确认文件是否存在
+	delfile = fsys.searchFile(mainForm.listbox.selText,fsys.getCurDir())
+	if(delfile){
+		//删除文件
+		//console.print(delfile)
+		var ret = fsys.delete(delfile,,,);
+		if(ret){
+			//删除成功
+			FreshDatabase();
+		}
+		else {
+			//删除失败
+			win.msgboxTimeout("删除失败","错误",3000,);
+		}
+		
+	}
+}
+
+try{
+    //显示版本号
+    var version = fsys.version.getInfo(io._exepath).productVersion
+    mainForm.st_Version.text = 'v'++tostring(version)
+}
+
+
+
+FreshDatabase();
+mainForm.show();
+return win.loopMessage();
